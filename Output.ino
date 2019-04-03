@@ -47,7 +47,7 @@ void printdata(void)
       Serial.print(AN[1]);
       Serial.print(",");
       Serial.print(AN[2]);  
-      Serial.print(",");
+      Serial.print(", ");
       Serial.print(AN[3]);
       Serial.print (",");
       Serial.print(AN[4]);
@@ -88,4 +88,3 @@ void printdata(void)
 {
   return x*10000000;
 }*/
-

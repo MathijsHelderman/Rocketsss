@@ -51,6 +51,16 @@ int SENSOR_SIGN[9] = {1,1,1,-1,-1,-1,1,1,1}; //Correct directions x,y,z - gyro, 
 // tested with Arduino Uno with ATmega328 and Arduino Duemilanove with ATMega168
 
 #include <Wire.h>
+#include <SPI.h>
+#include <SD.h>
+
+
+const String FILENAME = "datalog.txt";
+const int CHIPSELECT = 4;
+
+
+
+
 
 // accelerometer: 8 g sensitivity
 // 3.9 mg/digit; 1 g = 256
@@ -71,12 +81,12 @@ int SENSOR_SIGN[9] = {1,1,1,-1,-1,-1,1,1,1}; //Correct directions x,y,z - gyro, 
 // LSM303/LIS3MDL magnetometer calibration constants; use the Calibrate example from
 // the Pololu LSM303 or LIS3MDL library to find the right values for your board
 
-#define M_X_MIN +238
-#define M_Y_MIN -9746
-#define M_Z_MIN -2481
-#define M_X_MAX +7760
-#define M_Y_MAX -3988
-#define M_Z_MAX +2754
+#define M_X_MIN -5067
+#define M_Y_MIN -10054
+#define M_Z_MIN +1976
+#define M_X_MAX +6496
+#define M_Y_MAX -2785
+#define M_Z_MAX +10273
 
 #define Kp_ROLLPITCH 0.02
 #define Ki_ROLLPITCH 0.00002
@@ -86,7 +96,7 @@ int SENSOR_SIGN[9] = {1,1,1,-1,-1,-1,1,1,1}; //Correct directions x,y,z - gyro, 
 /*For debugging purposes*/
 //OUTPUTMODE=1 will print the corrected data,
 //OUTPUTMODE=0 will print uncorrected data of the gyros (with drift)
-#define OUTPUTMODE 1
+#define OUTPUTMODE 0
 
 #define PRINT_DCM 0     //Will print the whole direction cosine matrix
 #define PRINT_ANALOGS 0 //Will print the analog raw data
@@ -128,6 +138,10 @@ float roll;
 float pitch;
 float yaw;
 
+float altitude;
+float pressure;
+float init_alt;
+
 float errorRollPitch[3]= {0,0,0};
 float errorYaw[3]= {0,0,0};
 
@@ -157,13 +171,20 @@ float Temporary_Matrix[3][3]={
 void setup()
 {
   Serial.begin(115200);
+  
+  if (!SD.begin(CHIPSELECT)) {
+    Serial.println("ERROR: card failed, or not present.");
+    // Don't do anything else.
+    while (1);
+  }
+  Serial.println("Card initialized."); 
+
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
   }
   pinMode (STATUS_LED,OUTPUT);  // Status LED
 
   // Check if debuggin mode is on
-  checkDebugs();
   
   I2C_Init();
 
@@ -203,25 +224,9 @@ void setup()
   counter=0;
 }
 
-// Method checking if any of the debugging methods are on, and if so, run them
-void checkDebugs() {
-  // Check if we want to check the thrust vector control, DEBUG_TVC is defined in "class" 'TVC' for now
-  #if DEBUG_TVC
-    checkTVC();
-  #endif
-  
-  // Check if we want to check the sd, DEBUG_SD is defined in "class" 'sd_card' for now
-  #if DEBUG_SD
-    checkSD();
-  #endif
-}
 
-boolean runningLoop = true;
-void loop() //Main Loop
-{
-  handleSerial();
-  if (runningLoop) {
-    if((millis()-timer)>=20)  // Main loop runs at 50Hz  {
+void loop(){
+    if((millis()-timer)>=20){
       counter++;
       timer_old = timer;
       timer=millis();
@@ -240,7 +245,7 @@ void loop() //Main Loop
       // Data adquisition
       Read_Gyro();   // This read gyro data
       Read_Accel();     // Read I2C accelerometer
-  
+      Read_Baro();
       if (counter > 5)  // Read compass data at 10Hz... (5 loop runs)
       {
         counter=0;
@@ -254,22 +259,7 @@ void loop() //Main Loop
       Drift_correction();
       Euler_angles();
       // ***        
-      
       //printdata();
       writeToSD();
   }
-}
-
-void handleSerial() {
- while (Serial.available() > 0) {
-   char incomingCharacter = Serial.read();
-   switch (incomingCharacter) {
-     case 's':
-      runningLoop = false;
-      break;
-    case 'r':
-      runningLoop = true;
-      break;
-    }
- }
 }

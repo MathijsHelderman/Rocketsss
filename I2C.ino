@@ -32,9 +32,12 @@ with MinIMU-9-Arduino-AHRS. If not, see <http://www.gnu.org/licenses/>.
 
 #include <LSM6.h>
 #include <LIS3MDL.h>
+#include <LPS.h>
 
 LSM6 gyro_acc;
 LIS3MDL mag;
+LPS ps;
+
 
 #else // older IMUs through v4
 
@@ -43,6 +46,7 @@ LIS3MDL mag;
 
 L3G gyro;
 LSM303 compass;
+
 
 #endif
 
@@ -107,6 +111,16 @@ void Accel_Init()
       compass.writeReg(LSM303::CTRL_REG4_A, 0x30); // 8 g full scale: FS = 11
   }
 #endif
+if (!ps.init())
+  {
+    Serial.println("Failed to autodetect pressure sensor!");
+    while (1);
+  }
+
+  ps.enableDefault();
+  pressure = ps.readPressureInchesHg();
+  init_alt = ps.pressureToAltitudeFeet(pressure);
+
 }
 
 // Reads x,y and z accelerometer registers
@@ -140,6 +154,12 @@ void Compass_Init()
 #endif
 }
 
+void Read_Baro()
+{
+  pressure = ps.readPressureInchesHg();
+  altitude = ps.pressureToAltitudeFeet(pressure);
+  }
+
 void Read_Compass()
 {
 #ifdef IMU_V5
@@ -156,4 +176,3 @@ void Read_Compass()
   magnetom_z = SENSOR_SIGN[8] * compass.m.z;
 #endif
 }
-
