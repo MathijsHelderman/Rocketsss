@@ -53,7 +53,10 @@ int SENSOR_SIGN[9] = {1,1,1,-1,-1,-1,1,1,1}; //Correct directions x,y,z - gyro, 
 #include <Wire.h>
 #include <SPI.h>
 #include <SD.h>
+#include <Servo.h>
 
+Servo lowerServo;  // create servo object to control a servo
+Servo upperServo;
 
 const String FILENAME = "datalog.txt";
 const int CHIPSELECT = 4;
@@ -81,12 +84,12 @@ const int CHIPSELECT = 4;
 // LSM303/LIS3MDL magnetometer calibration constants; use the Calibrate example from
 // the Pololu LSM303 or LIS3MDL library to find the right values for your board
 
-#define M_X_MIN -5067
-#define M_Y_MIN -10054
-#define M_Z_MIN +1976
-#define M_X_MAX +6496
-#define M_Y_MAX -2785
-#define M_Z_MAX +10273
+#define M_X_MIN -2771
+#define M_Y_MIN -8484
+#define M_Z_MIN +3416
+#define M_X_MAX +6228
+#define M_Y_MAX -3470
+#define M_Z_MAX +10403
 
 #define Kp_ROLLPITCH 0.02
 #define Ki_ROLLPITCH 0.00002
@@ -171,6 +174,11 @@ float Temporary_Matrix[3][3]={
 void setup()
 {
   Serial.begin(115200);
+
+  lowerServo.attach(9);  // attaches the servo on pin 9 to the servo object
+  upperServo.attach(6);
+  upperServo.write(82);
+  lowerServo.write(96);
   
   if (!SD.begin(CHIPSELECT)) {
     Serial.println("ERROR: card failed, or not present.");
@@ -191,12 +199,12 @@ void setup()
   Serial.println("Pololu MinIMU-9 + Arduino AHRS");
 
   digitalWrite(STATUS_LED,LOW);
-  delay(1500);
+  delay(1000);
 
   Accel_Init();
   Compass_Init();
   Gyro_Init();
-  delay(20);
+  delay(2000);
 
   for(int i=0;i<32;i++)    // We take some readings...
     {
@@ -216,7 +224,7 @@ void setup()
   for(int y=0; y<6; y++)
     Serial.println(AN_OFFSET[y]);
 
-  delay(2000);
+  delay(1000);
   digitalWrite(STATUS_LED,HIGH);
 
   timer=millis();
@@ -260,6 +268,7 @@ void loop(){
       Euler_angles();
       // ***        
       //printdata();
+      set_TVC();
       writeToSD();
   }
 }
